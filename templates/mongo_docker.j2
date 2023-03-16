@@ -69,7 +69,9 @@ send_notification()
 }
 
 #Create backup
-pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} > ${TMP}/${NAME}.gzip
+docker exec -i ${mongo_docker.container_name} /usr/bin/mongodump --db ${mongo_docker.database_name} --archive=/${NAME}-${CURRENT_DATE}.tar.gz && \
+docker cp ${CONTAINER_NAME}:/${NAME}-${CURRENT_DATE}.tar.gz ${ARCHIVE_FULL_NAME} && \
+docker exec -i ${CONTAINER_NAME} rm -rf /${NAME}-${CURRENT_DATE}.tar.gz
 
 #Upload to S3. Notification telegram
 CURRENT_DATE=$(date -u +%Y%m%d%H%M%S)
