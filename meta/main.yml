@@ -1,0 +1,20 @@
+---
+galaxy_info:
+   author: Denis Osminin / M.Chervyakov / D.Razin
+   description: Role for backup MongoDB to s3
+   company: Personal project
+   role_name: ansible_mongo_backup
+   namespace: one_mind
+
+   license: Apache
+
+   min_ansible_version: 4
+
+   platforms:
+     - name: Ubuntu
+       versions:
+         - focal
+
+   galaxy_tags: [backup, mongo, docker]
+
+dependencies: []

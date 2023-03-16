@@ -1,0 +1,14 @@
+- name: Python and pip3 install 
+  package:
+     name: "{{ item }}"
+     state: present
+  loop: "{{ backup_notifications.requirements }}"
+  become: yes
+  when: backup_notifications.enabled 
+
+- name: Install aprise packages
+  pip:  
+    name:  apprise
+    state: present
+  become: yes
+  when: backup_notifications.enabled

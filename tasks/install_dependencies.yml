@@ -1,0 +1,4 @@
+- name: Check to aws-cli installed
+  package: 
+    name: awscli
+    state: present

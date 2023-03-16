@@ -1,0 +1,38 @@
+- name: Create a config dir
+  file:
+    path: "/etc/backup"
+    state: directory
+    mode: "600"
+
+- name: Create AWS credentials file
+  template:
+    src: credentials.j2
+    dest: "/etc/backup/credentials"
+    mode: "600"
+
+- name: Create a config dir
+  file:
+    path: "/usr/local/bin/{{ item.database_type }}"
+    state: directory
+    mode: "600"
+  with_items: "{{ backup.databases }}"
+
+- name: Copy backup executable file
+  template:
+    src: "{{ item.database_type }}.j2"
+    dest: /usr/local/bin/{{ item.database_type }}/backup.sh
+    mode: "700"
+  with_items: "{{ backup.databases }}"
+
+- name: Copy backup aprise config
+  template:
+    src: "apprise_config.j2"
+    dest: /etc/backup/apprise_config
+    mode: "600"
+  when: backup_notifications.enabled and backup_notifications.apprise_target != ""
+
+- name: delete apprise_config when notification is turned off
+  file:
+    path: /etc/backup/apprise_config
+    state: absent
+  when: not backup_notifications.enabled or backup_notifications.apprise_target == ""
