@@ -70,7 +70,25 @@ send_notification()
 
 #Create backup
 pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} | gzip > ${TMP}/${NAME}.tar.gz
-
+CREATE_RESULT=$?
+if [[ $CREATE_RESULT  -gt 0 ]];  then
+  sleep 600
+  echo "Attempt #2"
+  pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} | gzip > ${TMP}/${NAME}.tar.gz
+fi
+CREATE_RESULT=$?
+if [[ $CREATE_RESULT  -gt 0 ]];  then
+  sleep 600
+  echo "Attempt #3"
+  pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} | gzip > ${TMP}/${NAME}.tar.gz
+fi
+CREATE_RESULT=$?
+if [[ $CREATE_RESULT  -gt 0 ]];  then
+     rm ${TMP}/${NAME}.tar.gz
+     echo "Backup creation failed"
+     send_notification "Failed to upload tar archive" "Could't to upload tar ${NAME} to ${DEST} with exit code ${AWS_RESULT}"
+     exit 1;
+fi
 #Upload to S3. Notification telegram
 CURRENT_DATE=$(date -u +%Y%m%d%H%M%S)
 ARCHIVE_BASE_NAME=base-${CURRENT_DATE}.tar.gz
