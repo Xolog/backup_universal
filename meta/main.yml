@@ -3,7 +3,7 @@ galaxy_info:
    author: Denis Osminin / M.Chervyakov / D.Razin / A.Bogdanov
    description: Role for backup to s3
    company: Personal project
-   role_name: ansible_backup_universal
+   role_name: backup_universal
    namespace: one_mind
 
    license: Apache
