@@ -1,4 +1,12 @@
 - name: Check to aws-cli installed
-  package: 
+  package:
     name: awscli
+    state: present
+- name: Check to postgresql-client-common
+  package:
+    name: postgresql-client-common
+    state: present
+- name: Check to postgresql-client-common
+  package:
+    name: postgresql-client
     state: present

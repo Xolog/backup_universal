@@ -1,14 +1,13 @@
 #!/bin/bash
 
-
 export AWS_SHARED_CREDENTIALS_FILE=/etc/backup/credentials
 
-usage() { 
-    echo "Usage: $0 -n <archive name> -d <destination path> -a <aws endpoint> [-t <tmp dir>] [-r <retain count>] [-e <exp date>] ; -e example, \"2 min ago\", \"-2 months 5 day ago\" ";
-    exit 1; 
+usage() {
+    echo "Usage: $0 -n <archive name> -d <destination path> -a <aws endpoint> [-t <tmp dir>] [-r <retain count>] [-e <exp date>] [-l <save local>]; -e example, \"2 min ago\", \"-2 months 5 day ago\" ";
+    exit 1;
 }
 
-while getopts ":n:d:t:r:e:a:" o; do
+while getopts ":n:d:t:r:e:a:l:" o; do
     case "${o}" in
         n)
             NAME=${OPTARG}
@@ -25,15 +24,18 @@ while getopts ":n:d:t:r:e:a:" o; do
         e)
             EXP_DATE=${OPTARG}
             ;;
-        
-        f)  
+
+        f)
             BACKUP_DIR=${OPTARG}
             ;;
-        
-        a)  
+
+        a)
             AWS_ENDPOINT=${OPTARG}
             ;;
 
+        l)
+            USE_LOCAL=${OPTARG}
+            ;;
         *)
             usage
             ;;
@@ -49,77 +51,114 @@ if [[ -z "${RETAIN_CNT}" ]]; then
     RETAIN_CNT=0
 fi
 
-#file lock
-LOCKFILE="/var/run/backup_${NAME}.lock"
-TIMEOUT=1
-touch $LOCKFILE
-exec {FD}<>$LOCKFILE
-
-if ! flock -x -w $TIMEOUT $FD; then
-    echo "fail to lock"
-    exit 1;
-fi
 
 send_notification()
-{   
+{
     if [ -f "/usr/local/bin/apprise" ] && [ -f "/etc/backup/apprise_config" ]; then
             /usr/local/bin/apprise  -t "${1}" -b "${2}" --config=/etc/backup/apprise_config
     fi
     exit 1
 }
 
+attempt_download()
+{
+    if [[ ! -z $(cat /tmp/backup_errors) ]];  then
+    cat /tmp/backup_errors && rm /tmp/backup_errors
+    sleep 180
+    echo "${1}"
+    pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} 2>/tmp/backup_errors | gzip > ${TMP}/${ARCHIVE_BASE_NAME}
+    fi
+}
+
+attempt_upload()
+{
+    if [[ $AWS_RESULT  -gt 0 ]];  then
+    sleep 180
+    echo "${1}"
+    aws --endpoint-url=${AWS_ENDPOINT} s3 cp ${TMP}/${ARCHIVE_BASE_NAME} ${DEST}/${ARCHIVE_BASE_NAME}
+    fi
+    AWS_RESULT=$?
+}
+
+#Define name of archive
+CURRENT_DATE=$(date -u +%Y%m%d%H%M%S)
+ARCHIVE_BASE_NAME=${NAME}-${CURRENT_DATE}.gz
+
+
 #Create backup
-pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} | gzip > ${TMP}/${NAME}.tar.gz
-CREATE_RESULT=$?
-if [[ $CREATE_RESULT  -gt 0 ]];  then
-  sleep 600
-  echo "Attempt #2"
-  pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} | gzip > ${TMP}/${NAME}.tar.gz
-fi
-CREATE_RESULT=$?
-if [[ $CREATE_RESULT  -gt 0 ]];  then
-  sleep 600
-  echo "Attempt #3"
-  pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} | gzip > ${TMP}/${NAME}.tar.gz
-fi
-CREATE_RESULT=$?
-if [[ $CREATE_RESULT  -gt 0 ]];  then
-     rm ${TMP}/${NAME}.tar.gz
+pg_dump postgresql://{{ pg_remote.database_user }}:{{ pg_remote.database_password }}@{{ pg_remote.database_host }}:{{ pg_remote.database_port }}/{{ pg_remote.database_name }} 2>/tmp/backup_errors | gzip > ${TMP}/${ARCHIVE_BASE_NAME}
+attempt_download "Attempt #2"
+attempt_download "Attempt #3"
+if [[ ! -z $(cat /tmp/backup_errors) ]];  then
+     cat /tmp/backup_errors && rm /tmp/backup_errors
+     rm ${TMP}/${ARCHIVE_BASE_NAME}
      echo "Backup creation failed"
+     send_notification "Failed to download archive" "Could't to download archive ${NAME}"
+     exit 1;
+fi
+rm /tmp/backup_errors
+echo "Dump has been downloaded successfully"
+
+#Upload to S3. Notification telegram
+
+echo "Try to upload to s3"
+aws --endpoint-url=${AWS_ENDPOINT} s3 cp ${TMP}/${ARCHIVE_BASE_NAME} ${DEST}/${ARCHIVE_BASE_NAME}
+AWS_RESULT=$?
+attempt_upload "Attempt to upload #2"
+attempt_upload "Attempt to upload #3"
+if [[ $AWS_RESULT  -gt 0 ]];  then
+    if [[ ! $USE_LOCAL ]]; then
+        rm ${TMP}/${ARCHIVE_BASE_NAME}
+    fi
+     echo "Backup upload failed"
      send_notification "Failed to upload tar archive" "Could't to upload tar ${NAME} to ${DEST} with exit code ${AWS_RESULT}"
      exit 1;
 fi
-#Upload to S3. Notification telegram
-CURRENT_DATE=$(date -u +%Y%m%d%H%M%S)
-ARCHIVE_BASE_NAME=base-${CURRENT_DATE}.tar.gz
-ARCHIVE_WAL_NAME=wal-${CURRENT_DATE}.tar.gz
-
-aws --endpoint-url=${AWS_ENDPOINT} s3 mv ${TMP}/${NAME}.tar.gz ${DEST}/${ARCHIVE_BASE_NAME}
-AWS_RESULT=$?
-if [[ $AWS_RESULT  -gt 0 ]];  then
-     rm ${TMP}/${NAME}.tar.gz
-     send_notification "Failed to upload tar archive" "Could't to upload tar ${NAME} to ${DEST} with exit code ${AWS_RESULT}"
+echo "Backup has been uploaded successfully"
+if [[ ! $USE_LOCAL ]]; then
+    rm ${TMP}/${ARCHIVE_BASE_NAME}
 fi
 
 #Rotation by count
 if [[ $RETAIN_CNT -gt 0 ]]; then
-    REMOTE_FILES=$(aws --endpoint-url=${AWS_ENDPOINT} s3 ls ${DEST} | sort | awk '{print $4}' | grep ${NAME}) 
+    echo "Rotation by count"
+    REMOTE_FILES=$(aws --endpoint-url=${AWS_ENDPOINT} s3 ls ${DEST} | sort | awk '{print $4}' | grep ${NAME})
     echo "$REMOTE_FILES" | grep -v "`echo \"$REMOTE_FILES\" | tail -n ${RETAIN_CNT}`" | \
     while read file; do \
         aws --endpoint-url=${AWS_ENDPOINT} s3 rm "${DEST}${file}"; \
     done
-    echo "Done"
+    if [[ $USE_LOCAL ]]; then
+    LOCAL_FILES=$(ls -la ${TMP} | sort | awk '{print $9}' | grep ${NAME})
+    echo "$LOCAL_FILES" | grep -v "`echo \"$LOCAL_FILES\" | tail -n ${RETAIN_CNT}`" | \
+    while read file; do \
+        echo rm "${TMP}/${file}"
+        rm "${TMP}/${file}"; \
+    done
+    fi
 fi
 
 #Rotation by time
 if [[ -n "${EXP_DATE}" ]]; then
-     REMOTE_FILES=$(aws --endpoint-url=${AWS_ENDPOINT} s3 ls "${DEST}") 
+     echo "Rotation by time"
+     REMOTE_FILES=$(aws --endpoint-url=${AWS_ENDPOINT} s3 ls "${DEST}")
      echo  "$REMOTE_FILES" | awk '{print $4}'  | \
   while read file; do \
         CURRENT_ARCHIEVE=$(echo $file | sed  "s/[^0-9]//g")  \
-        FILTER_DATA=$(echo $(date --date="${EXP_DATE}" +%Y%m%d%H%M%S) | tr -d '-' )  
-  if  [[ $CURRENT_ARCHIEVE < $FILTER_DATA  ]]; then  
-          aws --endpoint-url=${AWS_ENDPOINT} s3 rm "${DEST}${file}"; 
-  fi 
+        FILTER_DATA=$(echo $(date --date="${EXP_DATE}" +%Y%m%d%H%M%S) | tr -d '-' )
+  if  [[ $CURRENT_ARCHIEVE < $FILTER_DATA  ]]; then
+          aws --endpoint-url=${AWS_ENDPOINT} s3 rm "${DEST}${file}";
+  fi
   done
+    if [[ $USE_LOCAL ]]; then
+        LOCAL_FILES=$(ls -la "${TMP}" | grep ${NAME})
+        echo  "$LOCAL_FILES" | awk '{print $9}'  | \
+        while read file; do \
+            CURRENT_ARCHIEVE=$(echo $file | sed  "s/[^0-9]//g")  \
+            FILTER_DATA=$(echo $(date --date="${EXP_DATE}" +%Y%m%d%H%M%S) | tr -d '-' )
+            if  [[ $CURRENT_ARCHIEVE < $FILTER_DATA  ]]; then
+                 echo rm "${TMP}/${file}"
+                 rm "${TMP}/${file}";
+            fi
+        done
+    fi
 fi
