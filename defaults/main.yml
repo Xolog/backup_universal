@@ -1,6 +1,6 @@
 ---
 backup_notifications:
-  enabled: true 
+  enabled: true
   apprise_target: ""
   requirements:
     - python3
@@ -15,7 +15,7 @@ pg_remote:
   database_password: test
   database_host: localhost
   database_port: 5433
- 
+
 mysql_docker:
   database_name: test
   name_backup: super-backup_mysql
@@ -37,6 +37,7 @@ backup:
     aws_endpoint: ""
     retain_count: 5
     filter_date: '"5 min ago"'
+    use_local: "" #Use for save backups in the host. Use "" for False.
     cron:
         minute: "*"
         hour: "*"

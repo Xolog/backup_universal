@@ -8,6 +8,6 @@
     month: "{{ item.cron.month }}"
     job: |
 
-          /usr/local/bin/{{ item.database_type }}/backup.sh -n {{ item.name_backup }} -d {{ item.aws_dest }} -t {{ item.tmp_dir }} -r {{ item.retain_count }} -e {{ item.filter_date }} -a {{ item.aws_endpoint }}   >> /var/log/files_backup.log 2>&1 
+          /usr/local/bin/{{ item.database_type }}/backup.sh -n {{ item.name_backup }} -d {{ item.aws_dest }} -t {{ item.tmp_dir }} -r {{ item.retain_count }} -e {{ item.filter_date }} -a {{ item.aws_endpoint }} -l {{ item.use_local }}  >> /var/log/files_backup.log 2>&1
 
   with_items: "{{ backup.databases }}"
