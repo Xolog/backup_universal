@@ -1,7 +1,7 @@
 import os
 import subprocess
 import boto3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def send_notification(title, message, config_path="/etc/backup/apprise_config"):
     if os.path.exists("/usr/local/bin/apprise") and os.path.exists(config_path):
@@ -18,13 +18,13 @@ def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None):
             s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
     if exp_date:
-        exp_date = datetime.utcnow() - timedelta(seconds=int(exp_date))
+        exp_date = datetime.now(timezone.utc) - timedelta(seconds=int(exp_date))
         for obj in sorted_objects:
             if obj['LastModified'] < exp_date:
                 s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
 def backup_postgres(config):
-    archive_name = f"{config['name_backup']}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.gz"
+    archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
     try:
         if config.get("container_name"):
@@ -44,7 +44,7 @@ def backup_postgres(config):
         send_notification("Backup Failed", f"Postgres backup failed: {str(e)}")
 
 def backup_mysql(config):
-    archive_name = f"{config['name_backup']}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.gz"
+    archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
     try:
         if config.get("container_name"):
@@ -64,7 +64,7 @@ def backup_mysql(config):
         send_notification("Backup Failed", f"MySQL backup failed: {str(e)}")
 
 def backup_mongo(config):
-    archive_name = f"{config['name_backup']}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.gz"
+    archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
     try:
         if config.get("container_name"):
