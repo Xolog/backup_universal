@@ -116,18 +116,6 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key):
     except Exception as e:
         send_notification("Upload Failed", f"Failed to upload {file_path} to S3: {str(e)}")
 
-def configure_cron(config):
-    script_path = os.path.abspath(__file__)
-    cron_job = (
-        f"{config['cron']['minute']} {config['cron']['hour']} {config['cron']['day']} "
-        f"{config['cron']['month']} {config['cron']['weekday']} "
-        f"{script_path}"
-    )
-    cron_file = "/etc/cron.d/backup_cron"
-    with open(cron_file, "w") as f:
-        f.write(cron_job + "\n")
-    os.chmod(cron_file, 0o644)
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Backup Universal Script")
     parser.add_argument("-t", "--database_type", required=True, help="Type of the database (postgres, mysql, mongo)")
@@ -165,5 +153,3 @@ if __name__ == "__main__":
         send_notification("Backup Completed", f"Backup {config['name_backup']} completed successfully.", config["apprise_config"])
     else:
         print("No Apprise configuration provided. Skipping notification.")
-
-    configure_cron(config)
