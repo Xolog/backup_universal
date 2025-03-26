@@ -131,7 +131,7 @@ def parse_arguments():
     parser.add_argument("-d", "--aws_dest", required=True, help="AWS S3 destination (bucket/prefix)")
     parser.add_argument("-u", "--database_user", required=True, help="Database user")
     parser.add_argument("-p", "--database_password", required=True, help="Database password")
-    parser.add_argument("-h", "--database_host", required=True, help="Database host")
+    parser.add_argument("-H", "--database_host", required=True, help="Database host")
     parser.add_argument("-P", "--database_port", required=True, type=int, help="Database port")
     parser.add_argument("-r", "--retain_count", type=int, help="Number of backups to retain")
     parser.add_argument("-e", "--exp_date", type=int, help="Expiration date in seconds (optional)")
