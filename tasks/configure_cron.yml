@@ -24,7 +24,7 @@
         {% if item.notifications.enabled is defined and item.notifications.enabled %}--apprise_config /etc/backup/apprise_config_{{ item.name_backup }}{% endif %} \
         --credentials_file /etc/backup/credentials_{{ item.name_backup }} \
         >> /var/log/backup_universal.log 2>&1
-    dest: "/usr/local/bin/backup_scripts/backup_{{ item.name_backup }}.sh"
+    dest: "/usr/local/bin/backup_universal/backup_{{ item.name_backup }}.sh"
     mode: '0755'
   with_items: "{{ backups }}"
 
@@ -36,5 +36,5 @@
     day: "{{ item.cron.day }}"
     weekday: "{{ item.cron.weekday }}"
     month: "{{ item.cron.month }}"
-    job: "/usr/local/bin/backup_scripts/backup_{{ item.name_backup }}.sh"
+    job: "/usr/local/bin/backup_universal/backup_{{ item.name_backup }}.sh"
   with_items: "{{ backups }}"
