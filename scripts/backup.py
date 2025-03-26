@@ -36,7 +36,7 @@ def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aw
                 s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
 def backup_postgres(config):
-    archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
+    archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
     dump_path = tmp_path.replace('.gz', '.sql')
     try:
@@ -60,7 +60,7 @@ def backup_postgres(config):
         send_notification("Backup Failed", f"Postgres backup failed: {str(e)}")
 
 def backup_mysql(config):
-    archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
+    archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
     dump_path = tmp_path.replace('.gz', '.sql')
     try:
@@ -84,7 +84,7 @@ def backup_mysql(config):
         send_notification("Backup Failed", f"MySQL backup failed: {str(e)}")
 
 def backup_mongo(config):
-    archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
+    archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
     try:
         if config.get("container_name"):

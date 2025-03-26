@@ -15,7 +15,7 @@
     job: |
       /usr/local/bin/backup_universal/backup.py \
         -t {{ item.database_type }} \
-        -n {{ item.name_backup }} \
+        -n "{{ item.name_backup }}_$(date +\%F_\%H-\%M)" \
         -d {{ item.aws_dest }} \
         -u {{ item.database_user }} \
         -p {{ item.database_password }} \
