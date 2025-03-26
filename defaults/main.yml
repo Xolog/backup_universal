@@ -21,7 +21,7 @@ backups:
         - python3
         - python3-pip
         - python3-setuptools
-    apprise_config: "/etc/backup/apprise_config"
+    apprise_config: "/etc/backup/apprise_config_{{ item.name_backup }}"
     container_name: null  # Set container name if database runs in Docker
     cron:
       minute: "0"

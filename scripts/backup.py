@@ -9,9 +9,11 @@ import configparser
 def load_aws_credentials(credentials_file):
     config = configparser.ConfigParser()
     config.read(credentials_file)
+    if 'default' not in config:
+        raise KeyError("'default' section is missing in the credentials file")
     return config['default']['aws_access_key_id'], config['default']['aws_secret_access_key']
 
-def send_notification(title, message, config_path="/etc/backup/apprise_config"):
+def send_notification(title, message, config_path):
     if os.path.exists("/usr/local/bin/apprise") and os.path.exists(config_path):
         subprocess.run(["/usr/local/bin/apprise", "-t", title, "-b", message, "--config", config_path])
 
