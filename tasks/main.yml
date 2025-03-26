@@ -6,10 +6,7 @@
   include_tasks: create_configs.yml
   tags: config
 
-- name: Configure cron
-  include_tasks: configure_cron.yml
-  tags: cron
-
-- name: pyhton3, apprise install
-  include_tasks: install_python_apprise.yml
-  tags: cron
+- name: Run backup script
+  command: >
+    python3 /home/jony/personal/repos/github/backup_universal/scripts/backup.py
+  tags: backup

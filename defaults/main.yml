@@ -25,37 +25,24 @@ mysql_docker:
 
 
 backup:
-  aws_access_key: ""
-  aws_secret_key: ""
-  aws_endpoint: enpoint
-  databases:
-  - name_backup: super-bassdsds
-    database_type: pg_remote
-    tmp_dir: /tmp
-    database_name: name
-    aws_dest: ""
-    aws_endpoint: ""
-    retain_count: 5
-    filter_date: '"5 min ago"'
-    use_local: "" #Use for save backups in the host. Use "" for False.
-    cron:
-        minute: "*"
-        hour: "*"
-        day: "*"
-        weekday: "*"
-        month: "*"
-  - name_backup: super-bassdsds
-    database_type: mysql_docker
-    tmp_dir: /tmp
-    container_name: name
-    database_name: name
-    aws_dest: ""
-    aws_endpoint: ""
-    retain_count: 5
-    filter_date: '"5 min ago"'
-    cron:
-        minute: "*"
-        hour: "*"
-        day: "*"
-        weekday: "*"
-        month: "*"
+  database_type: ""  # postgres, mysql, mongo
+  name_backup: ""
+  database_name: ""
+  database_user: ""
+  database_password: ""
+  database_host: "localhost"
+  database_port: 5432
+  tmp_dir: "/tmp"
+  aws_dest: ""
+  aws_endpoint: ""
+  retain_count: 5
+  exp_date: null  # Expiration in seconds
+  notifications_enabled: true
+  apprise_config: "/etc/backup/apprise_config"
+  container_name: null  # Set container name if database runs in Docker
+  cron:
+    minute: "0"
+    hour: "2"
+    day: "*"
+    month: "*"
+    weekday: "*"

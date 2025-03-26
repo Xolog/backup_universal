@@ -1,14 +1,21 @@
-- name: Create a config dir
+- name: Create backup directory
   file:
     path: "/etc/backup"
     state: directory
-    mode: "600"
+    mode: "700"
 
 - name: Create AWS credentials file
   template:
     src: credentials.j2
     dest: "/etc/backup/credentials"
     mode: "600"
+
+- name: Create Apprise config file
+  template:
+    src: apprise_config.j2
+    dest: "{{ backup.apprise_config }}"
+    mode: "600"
+  when: backup.notifications_enabled
 
 - name: Create a config dir
   file:
