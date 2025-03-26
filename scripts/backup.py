@@ -2,6 +2,7 @@ import os
 import subprocess
 import boto3
 from datetime import datetime, timedelta, timezone
+import argparse
 
 def send_notification(title, message, config_path="/etc/backup/apprise_config"):
     if os.path.exists("/usr/local/bin/apprise") and os.path.exists(config_path):
@@ -101,34 +102,24 @@ def configure_cron(config):
         f.write(cron_job + "\n")
     os.chmod(cron_file, 0o644)
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Backup Universal Script")
+    parser.add_argument("-t", "--database_type", required=True, help="Type of the database (postgres, mysql, mongo)")
+    parser.add_argument("-n", "--name_backup", required=True, help="Name of the backup")
+    parser.add_argument("-d", "--aws_dest", required=True, help="AWS S3 destination (bucket/prefix)")
+    parser.add_argument("-u", "--database_user", required=True, help="Database user")
+    parser.add_argument("-p", "--database_password", required=True, help="Database password")
+    parser.add_argument("-h", "--database_host", required=True, help="Database host")
+    parser.add_argument("-P", "--database_port", required=True, type=int, help="Database port")
+    parser.add_argument("-r", "--retain_count", type=int, help="Number of backups to retain")
+    parser.add_argument("-e", "--exp_date", type=int, help="Expiration date in seconds (optional)")
+    parser.add_argument("--container_name", help="Docker container name (optional)")
+    parser.add_argument("--aws_endpoint", help="AWS S3 endpoint (optional)")
+    parser.add_argument("--tmp_dir", default="/tmp", help="Temporary directory for backups")
+    return vars(parser.parse_args())
+
 if __name__ == "__main__":
-    # Example configuration
-    config = {
-        "database_type": "postgres",  # or "mysql", "mongo"
-        "name_backup": "example_backup",
-        "database_name": "example_db",
-        "database_user": "user",
-        "database_password": "password",
-        "database_host": "localhost",
-        "database_port": 5432,
-        "tmp_dir": "/tmp",
-        "aws_dest": "s3://bucket-name/prefix",
-        "aws_endpoint": "https://s3.example.com",
-        "retain_count": 5,
-        "exp_date": None,
-        "container_name": None,  # Set container name if database runs in Docker
-        "cron": {
-            "minute": "0",
-            "hour": "2",
-            "day": "*",
-            "month": "*",
-            "weekday": "*"
-        },
-        "notifications": {
-            "enabled": True,
-            "apprise_target": ""
-        },
-    }
+    config = parse_arguments()
 
     if config["database_type"] == "postgres":
         backup_postgres(config)
@@ -137,5 +128,5 @@ if __name__ == "__main__":
     elif config["database_type"] == "mongo":
         backup_mongo(config)
 
-    rotate_backups(config["aws_dest"], config["retain_count"], config["exp_date"], config["aws_endpoint"])
+    rotate_backups(config["aws_dest"], config.get("retain_count"), config.get("exp_date"), config.get("aws_endpoint"))
     configure_cron(config)
