@@ -10,15 +10,17 @@
     dest: "/etc/backup/credentials"
     mode: "600"
 
-- name: Create Apprise config file
+- name: Create Apprise config files
   template:
     src: apprise_config.j2
-    dest: "{{ backup.apprise_config }}"
+    dest: "/etc/backup/apprise_config_{{ item.name_backup }}"
     mode: "600"
-  when: backup.notifications.enabled
+  with_items: "{{ backups }}"
+  when: item.notifications.enabled
 
-- name: Delete Apprise config when notifications are disabled
+- name: Delete Apprise config files when notifications are disabled
   file:
-    path: "{{ backup.apprise_config }}"
+    path: "/etc/backup/apprise_config_{{ item.name_backup }}"
     state: absent
-  when: not backup.notifications.enabled
+  with_items: "{{ backups }}"
+  when: not item.notifications.enabled
