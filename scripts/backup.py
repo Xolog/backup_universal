@@ -3,13 +3,19 @@ import subprocess
 import boto3
 from datetime import datetime, timedelta, timezone
 import argparse
+import configparser
+
+def load_aws_credentials(credentials_file):
+    config = configparser.ConfigParser()
+    config.read(credentials_file)
+    return config['default']['aws_access_key_id'], config['default']['aws_secret_access_key']
 
 def send_notification(title, message, config_path="/etc/backup/apprise_config"):
     if os.path.exists("/usr/local/bin/apprise") and os.path.exists(config_path):
         subprocess.run(["/usr/local/bin/apprise", "-t", title, "-b", message, "--config", config_path])
 
-def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None):
-    s3 = boto3.client('s3', endpoint_url=aws_endpoint)
+def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aws_access_key=None, aws_secret_key=None):
+    s3 = boto3.client('s3', endpoint_url=aws_endpoint, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
     bucket, prefix = dest.split('/', 1)
     objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix).get('Contents', [])
     sorted_objects = sorted(objects, key=lambda x: x['LastModified'])
@@ -43,7 +49,8 @@ def backup_postgres(config):
                     f"{config['database_host']}:{config['database_port']}/{config['database_name']}"
                 ], stdout=f, check=True)
         subprocess.run(["gzip", dump_path], check=True)
-        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], config.get('aws_access_key'), config.get('aws_secret_key'))
+        aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
+        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key)
     except Exception as e:
         send_notification("Backup Failed", f"Postgres backup failed: {str(e)}")
 
@@ -63,7 +70,8 @@ def backup_mysql(config):
                 config['database_name']
             ], stdout=subprocess.PIPE, check=True)
         subprocess.run(["gzip", tmp_path], check=True)
-        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], config.get('aws_access_key'), config.get('aws_secret_key'))
+        aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
+        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key)
     except Exception as e:
         send_notification("Backup Failed", f"MySQL backup failed: {str(e)}")
 
@@ -81,11 +89,12 @@ def backup_mongo(config):
                 "mongodump", "--db", config['database_name'], "--archive", tmp_path
             ], check=True)
         subprocess.run(["gzip", tmp_path], check=True)
-        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], config.get('aws_access_key'), config.get('aws_secret_key'))
+        aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
+        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key)
     except Exception as e:
         send_notification("Backup Failed", f"MongoDB backup failed: {str(e)}")
 
-def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key=None, aws_secret_key=None):
+def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key):
     s3 = boto3.client(
         's3',
         endpoint_url=aws_endpoint,
@@ -126,6 +135,7 @@ def parse_arguments():
     parser.add_argument("--tmp_dir", default="/tmp", help="Temporary directory for backups")
     parser.add_argument("--aws_access_key", help="AWS access key (optional)")
     parser.add_argument("--aws_secret_key", help="AWS secret key (optional)")
+    parser.add_argument("--credentials_file", required=True, help="Path to the AWS credentials file")
     return vars(parser.parse_args())
 
 if __name__ == "__main__":
@@ -138,5 +148,6 @@ if __name__ == "__main__":
     elif config["database_type"] == "mongo":
         backup_mongo(config)
 
-    rotate_backups(config["aws_dest"], config.get("retain_count"), config.get("exp_date"), config.get("aws_endpoint"))
+    aws_access_key, aws_secret_key = load_aws_credentials(config["credentials_file"])
+    rotate_backups(config["aws_dest"], config.get("retain_count"), config.get("exp_date"), config.get("aws_endpoint"), aws_access_key, aws_secret_key)
     configure_cron(config)
