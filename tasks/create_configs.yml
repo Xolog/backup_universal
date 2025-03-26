@@ -4,11 +4,18 @@
     state: directory
     mode: "700"
 
+- name: Fail if AWS credentials are missing
+  fail:
+    msg: "Missing AWS credentials (aws_access_key or aws_secret_key) for backup: {{ item.name_backup }}"
+  when: item.aws_access_key is not defined or item.aws_secret_key is not defined
+  with_items: "{{ backups }}"
+
 - name: Create AWS credentials file
   template:
     src: credentials.j2
-    dest: "/etc/backup/credentials"
+    dest: "/etc/backup/credentials_{{ item.name_backup }}"
     mode: "600"
+  with_items: "{{ backups }}"
 
 - name: Create Apprise config files
   template:

@@ -10,6 +10,8 @@ backups:
     tmp_dir: "/tmp"
     aws_dest: ""
     aws_endpoint: ""
+    aws_access_key: ""  # AWS access key
+    aws_secret_key: ""  # AWS secret key
     retain_count: 5
     exp_date: null  # Expiration in seconds
     notifications:

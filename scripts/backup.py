@@ -27,20 +27,23 @@ def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None):
 def backup_postgres(config):
     archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
+    dump_path = tmp_path.replace('.gz', '.sql')
     try:
         if config.get("container_name"):
-            subprocess.run([
-                "docker", "exec", config["container_name"], "pg_dump",
-                f"postgresql://{config['database_user']}:{config['database_password']}@"
-                f"{config['database_host']}:{config['database_port']}/{config['database_name']}"
-            ], stdout=subprocess.PIPE, check=True)
+            with open(dump_path, 'wb') as f:
+                subprocess.run([
+                    "docker", "exec", config["container_name"], "pg_dump",
+                    f"postgresql://{config['database_user']}:{config['database_password']}@"
+                    f"{config['database_host']}:{config['database_port']}/{config['database_name']}"
+                ], stdout=f, check=True)
         else:
-            subprocess.run([
-                "pg_dump", f"postgresql://{config['database_user']}:{config['database_password']}@"
-                f"{config['database_host']}:{config['database_port']}/{config['database_name']}"
-            ], stdout=subprocess.PIPE, check=True)
-        subprocess.run(["gzip", tmp_path], check=True)
-        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'])
+            with open(dump_path, 'wb') as f:
+                subprocess.run([
+                    "pg_dump", f"postgresql://{config['database_user']}:{config['database_password']}@"
+                    f"{config['database_host']}:{config['database_port']}/{config['database_name']}"
+                ], stdout=f, check=True)
+        subprocess.run(["gzip", dump_path], check=True)
+        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], config.get('aws_access_key'), config.get('aws_secret_key'))
     except Exception as e:
         send_notification("Backup Failed", f"Postgres backup failed: {str(e)}")
 
@@ -60,7 +63,7 @@ def backup_mysql(config):
                 config['database_name']
             ], stdout=subprocess.PIPE, check=True)
         subprocess.run(["gzip", tmp_path], check=True)
-        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'])
+        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], config.get('aws_access_key'), config.get('aws_secret_key'))
     except Exception as e:
         send_notification("Backup Failed", f"MySQL backup failed: {str(e)}")
 
@@ -78,12 +81,17 @@ def backup_mongo(config):
                 "mongodump", "--db", config['database_name'], "--archive", tmp_path
             ], check=True)
         subprocess.run(["gzip", tmp_path], check=True)
-        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'])
+        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], config.get('aws_access_key'), config.get('aws_secret_key'))
     except Exception as e:
         send_notification("Backup Failed", f"MongoDB backup failed: {str(e)}")
 
-def upload_to_s3(file_path, dest, aws_endpoint):
-    s3 = boto3.client('s3', endpoint_url=aws_endpoint)
+def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key=None, aws_secret_key=None):
+    s3 = boto3.client(
+        's3',
+        endpoint_url=aws_endpoint,
+        aws_access_key_id=aws_access_key,
+        aws_secret_access_key=aws_secret_key
+    )
     bucket, key = dest.split('/', 1)
     try:
         s3.upload_file(file_path, bucket, key)
@@ -116,6 +124,8 @@ def parse_arguments():
     parser.add_argument("--container_name", help="Docker container name (optional)")
     parser.add_argument("--aws_endpoint", help="AWS S3 endpoint (optional)")
     parser.add_argument("--tmp_dir", default="/tmp", help="Temporary directory for backups")
+    parser.add_argument("--aws_access_key", help="AWS access key (optional)")
+    parser.add_argument("--aws_secret_key", help="AWS secret key (optional)")
     return vars(parser.parse_args())
 
 if __name__ == "__main__":
