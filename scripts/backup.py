@@ -41,7 +41,7 @@ def backup_postgres(config):
         subprocess.run(["gzip", tmp_path], check=True)
         upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'])
     except Exception as e:
-        send_notification("Backup Failed", str(e))
+        send_notification("Backup Failed", f"Postgres backup failed: {str(e)}")
 
 def backup_mysql(config):
     archive_name = f"{config['name_backup']}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.gz"
@@ -61,7 +61,7 @@ def backup_mysql(config):
         subprocess.run(["gzip", tmp_path], check=True)
         upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'])
     except Exception as e:
-        send_notification("Backup Failed", str(e))
+        send_notification("Backup Failed", f"MySQL backup failed: {str(e)}")
 
 def backup_mongo(config):
     archive_name = f"{config['name_backup']}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.gz"
@@ -79,13 +79,16 @@ def backup_mongo(config):
         subprocess.run(["gzip", tmp_path], check=True)
         upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'])
     except Exception as e:
-        send_notification("Backup Failed", str(e))
+        send_notification("Backup Failed", f"MongoDB backup failed: {str(e)}")
 
 def upload_to_s3(file_path, dest, aws_endpoint):
     s3 = boto3.client('s3', endpoint_url=aws_endpoint)
     bucket, key = dest.split('/', 1)
-    s3.upload_file(file_path, bucket, key)
-    os.remove(file_path)
+    try:
+        s3.upload_file(file_path, bucket, key)
+        os.remove(file_path)
+    except Exception as e:
+        send_notification("Upload Failed", f"Failed to upload {file_path} to S3: {str(e)}")
 
 def configure_cron(config):
     cron_job = (
@@ -126,9 +129,6 @@ if __name__ == "__main__":
             "apprise_target": ""
         },
     }
-
-    if config["notifications"]["enabled"]:
-        send_notification("Backup Started", "Backup process has started.")
 
     if config["database_type"] == "postgres":
         backup_postgres(config)
