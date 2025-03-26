@@ -42,12 +42,14 @@ def backup_postgres(config):
     try:
         if config.get("container_name"):
             container_dump_path = f"/tmp/{archive_name.replace('.gz', '.sql')}"
+            print(f"Starting PostgreSQL backup in container: {config['container_name']}")
             subprocess.run([
                 "docker", "exec", config["container_name"], "pg_dump",
                 f"postgresql://{config['database_user']}:{config['database_password']}@"
                 f"{config['database_host']}:{config['database_port']}/{config['database_name']}",
                 "-f", container_dump_path
             ], check=True)
+            print(f"Copying dump file from container: {container_dump_path}")
             subprocess.run([
                 "docker", "cp", f"{config['container_name']}:{container_dump_path}", dump_path
             ], check=True)
@@ -73,11 +75,13 @@ def backup_mysql(config):
     try:
         if config.get("container_name"):
             container_dump_path = f"/tmp/{archive_name.replace('.gz', '.sql')}"
+            print(f"Starting MySQL backup in container: {config['container_name']}")
             subprocess.run([
                 "docker", "exec", config["container_name"], "mysqldump",
                 "-u", config['database_user'], f"--password={config['database_password']}",
                 config['database_name'], "-r", container_dump_path
             ], check=True)
+            print(f"Copying dump file from container: {container_dump_path}")
             subprocess.run([
                 "docker", "cp", f"{config['container_name']}:{container_dump_path}", dump_path
             ], check=True)
@@ -102,10 +106,12 @@ def backup_mongo(config):
     try:
         if config.get("container_name"):
             container_dump_path = f"/tmp/{archive_name.replace('.gz', '')}"
+            print(f"Starting MongoDB backup in container: {config['container_name']}")
             subprocess.run([
                 "docker", "exec", config["container_name"], "mongodump",
                 "--db", config['database_name'], "--archive", container_dump_path
             ], check=True)
+            print(f"Copying dump file from container: {container_dump_path}")
             subprocess.run([
                 "docker", "cp", f"{config['container_name']}:{container_dump_path}", tmp_path.replace('.gz', '')
             ], check=True)
