@@ -4,15 +4,10 @@
   when: item.database_type is not defined or item.name_backup is not defined or item.aws_dest is not defined
   with_items: "{{ backups }}"
 
-- name: Configure cron tasks
-  cron:
-    name: "Backup {{ item.name_backup }}"
-    minute: "{{ item.cron.minute }}"
-    hour: "{{ item.cron.hour }}"
-    day: "{{ item.cron.day }}"
-    weekday: "{{ item.cron.weekday }}"
-    month: "{{ item.cron.month }}"
-    job: |
+- name: Create backup script for cron
+  copy:
+    content: |
+      #!/bin/bash
       /usr/local/bin/backup_universal/backup.py \
         -t {{ item.database_type }} \
         -n "{{ item.name_backup }}_$(date +\%F_\%H-\%M)" \
@@ -29,4 +24,17 @@
         {% if item.notifications.enabled is defined and item.notifications.enabled %}--apprise_config /etc/backup/apprise_config_{{ item.name_backup }}{% endif %} \
         --credentials_file /etc/backup/credentials_{{ item.name_backup }} \
         >> /var/log/backup_universal.log 2>&1
+    dest: "/usr/local/bin/backup_scripts/backup_{{ item.name_backup }}.sh"
+    mode: '0755'
+  with_items: "{{ backups }}"
+
+- name: Configure cron tasks
+  cron:
+    name: "Backup {{ item.name_backup }}"
+    minute: "{{ item.cron.minute }}"
+    hour: "{{ item.cron.hour }}"
+    day: "{{ item.cron.day }}"
+    weekday: "{{ item.cron.weekday }}"
+    month: "{{ item.cron.month }}"
+    job: "/usr/local/bin/backup_scripts/backup_{{ item.name_backup }}.sh"
   with_items: "{{ backups }}"
