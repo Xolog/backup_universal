@@ -91,7 +91,7 @@ def configure_cron(config):
     cron_job = (
         f"{config['cron']['minute']} {config['cron']['hour']} {config['cron']['day']} "
         f"{config['cron']['month']} {config['cron']['weekday']} "
-        f"python3 /home/jony/personal/repos/github/backup_universal/scripts/backup.py"
+        f"/usr/local/bin/backup_universal/backup.py"
     )
     cron_file = "/etc/cron.d/backup_cron"
     with open(cron_file, "w") as f:

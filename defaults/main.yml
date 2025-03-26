@@ -7,23 +7,6 @@ backup_notifications:
     - python3-pip
     - python3-setuptools
 
-
-pg_remote:
-  database_name: test
-  name_backup: super-backup
-  database_user: test
-  database_password: test
-  database_host: localhost
-  database_port: 5433
-
-mysql_docker:
-  database_name: test
-  name_backup: super-backup_mysql
-  database_user: test
-  database_password: test
-  container_name: name
-
-
 backup:
   database_type: ""  # postgres, mysql, mongo
   name_backup: ""

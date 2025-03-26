@@ -6,7 +6,13 @@
   include_tasks: create_configs.yml
   tags: config
 
-- name: Run backup script
-  command: >
-    python3 /home/jony/personal/repos/github/backup_universal/scripts/backup.py
-  tags: backup
+- name: Copy backup script to target host
+  copy:
+    src: ../scripts/backup.py
+    dest: /usr/local/bin/backup_universal/backup.py
+    mode: "0755"
+  tags: script
+
+- name: Configure cron jobs
+  include_tasks: configure_cron.yml
+  tags: cron
