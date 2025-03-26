@@ -6,6 +6,13 @@
   include_tasks: create_configs.yml
   tags: config
 
+- name: Ensure backup script directory exists
+  file:
+    path: /usr/local/bin/backup_universal
+    state: directory
+    mode: "0755"
+  tags: script
+
 - name: Copy backup script to target host
   copy:
     src: ../scripts/backup.py
