@@ -4,6 +4,9 @@
       - python3
       - python3-pip
       - awscli
+      - postgresql-client
+      - mysql-client
+      - mongodb-clients
     state: present
   become: yes
 
@@ -14,12 +17,3 @@
       - apprise
     state: present
   become: yes
-
-- name: Check to postgresql-client-common
-  package:
-    name: postgresql-client-common
-    state: present
-- name: Check to postgresql-client-common
-  package:
-    name: postgresql-client
-    state: present
