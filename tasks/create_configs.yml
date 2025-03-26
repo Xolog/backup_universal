@@ -16,11 +16,11 @@
     dest: "/etc/backup/apprise_config_{{ item.name_backup }}"
     mode: "600"
   with_items: "{{ backups }}"
-  when: item.notifications.enabled
+  when: item.notifications.enabled | default(false)
 
 - name: Delete Apprise config files when notifications are disabled
   file:
     path: "/etc/backup/apprise_config_{{ item.name_backup }}"
     state: absent
   with_items: "{{ backups }}"
-  when: not item.notifications.enabled
+  when: not item.notifications.enabled | default(false)

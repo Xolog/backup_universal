@@ -1,3 +1,9 @@
+- name: Fail if required parameters are missing
+  fail:
+    msg: "Missing required parameters for backup: database_type, name_backup, or aws_dest"
+  when: item.database_type is not defined or item.name_backup is not defined or item.aws_dest is not defined
+  with_items: "{{ backups }}"
+
 - name: Configure cron tasks
   cron:
     name: "Backup {{ item.name_backup }}"
