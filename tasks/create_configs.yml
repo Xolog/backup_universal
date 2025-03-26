@@ -20,7 +20,7 @@
 - name: Create AWS credentials file
   template:
     src: credentials.j2
-    dest: "/etc/backup/credentials_{{ item.name_backup }}"
+    dest: "/usr/local/bin/backup_universal/credentials_{{ item.name_backup }}"
     mode: "600"
   with_items: "{{ backups }}"
 

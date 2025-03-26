@@ -22,7 +22,7 @@
         {% if item.aws_endpoint is defined %}--aws_endpoint {{ item.aws_endpoint }}{% endif %} \
         {% if item.tmp_dir is defined %}--tmp_dir {{ item.tmp_dir }}{% endif %} \
         {% if item.notifications.enabled is defined and item.notifications.enabled %}--apprise_config /etc/backup/apprise_config_{{ item.name_backup }}{% endif %} \
-        --credentials_file /etc/backup/credentials_{{ item.name_backup }} \
+        --credentials_file /usr/local/bin/backup_universal/credentials_{{ item.name_backup }} \
         >> /var/log/backup_universal.log 2>&1
     dest: "/usr/local/bin/backup_universal/backup_{{ item.name_backup }}.sh"
     mode: '0755'

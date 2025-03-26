@@ -111,10 +111,13 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key):
     )
     bucket, key = dest.split('/', 1)
     try:
+        print(f"Uploading {file_path} to S3...")
         s3.upload_file(file_path, bucket, key)
+        print(f"File uploaded: {file_path}")
         os.remove(file_path)
     except Exception as e:
         send_notification("Upload Failed", f"Failed to upload {file_path} to S3: {str(e)}")
+        print(f"Upload failed: {file_path} - {str(e)}")
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Backup Universal Script")
