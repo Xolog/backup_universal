@@ -13,9 +13,11 @@ def load_aws_credentials(credentials_file):
         raise KeyError("'default' section is missing in the credentials file")
     return config['default']['aws_access_key_id'], config['default']['aws_secret_access_key']
 
-def send_notification(title, message, config_path):
-    if os.path.exists("/usr/local/bin/apprise") and os.path.exists(config_path):
+def send_notification(title, message, config_path=None):
+    if os.path.exists("/usr/local/bin/apprise") and config_path and os.path.exists(config_path):
         subprocess.run(["/usr/local/bin/apprise", "-t", title, "-b", message, "--config", config_path])
+    else:
+        print(f"Notification skipped: Apprise config not provided or not found.")
 
 def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aws_access_key=None, aws_secret_key=None):
     s3 = boto3.client('s3', endpoint_url=aws_endpoint, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
@@ -143,6 +145,7 @@ def parse_arguments():
     parser.add_argument("--aws_access_key", help="AWS access key (optional)")
     parser.add_argument("--aws_secret_key", help="AWS secret key (optional)")
     parser.add_argument("--credentials_file", required=True, help="Path to the AWS credentials file")
+    parser.add_argument("--apprise_config", help="Path to the Apprise configuration file (optional)")
     return vars(parser.parse_args())
 
 if __name__ == "__main__":
@@ -157,4 +160,10 @@ if __name__ == "__main__":
 
     aws_access_key, aws_secret_key = load_aws_credentials(config["credentials_file"])
     rotate_backups(config["aws_dest"], config.get("retain_count"), config.get("exp_date"), config.get("aws_endpoint"), aws_access_key, aws_secret_key)
+
+    if config.get("apprise_config"):
+        send_notification("Backup Completed", f"Backup {config['name_backup']} completed successfully.", config["apprise_config"])
+    else:
+        print("No Apprise configuration provided. Skipping notification.")
+
     configure_cron(config)
