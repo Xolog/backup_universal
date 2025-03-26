@@ -4,10 +4,28 @@
       - python3
       - python3-pip
       - awscli
-      - postgresql-client
-      - mysql-client
-      - mongodb-clients
     state: present
+  become: yes
+
+- name: Install PostgreSQL client
+  package:
+    name: postgresql-client
+    state: present
+  when: "'postgres' in backups | map(attribute='database_type') | list"
+  become: yes
+
+- name: Install MySQL client
+  package:
+    name: mysql-client
+    state: present
+  when: "'mysql' in backups | map(attribute='database_type') | list"
+  become: yes
+
+- name: Install MongoDB client
+  package:
+    name: mongodb-org-shell
+    state: present
+  when: "'mongo' in backups | map(attribute='database_type') | list"
   become: yes
 
 - name: Install Python libraries
