@@ -41,12 +41,19 @@ def backup_postgres(config):
     dump_path = tmp_path.replace('.gz', '.sql')
     try:
         if config.get("container_name"):
-            with open(dump_path, 'wb') as f:
-                subprocess.run([
-                    "docker", "exec", config["container_name"], "pg_dump",
-                    f"postgresql://{config['database_user']}:{config['database_password']}@"
-                    f"{config['database_host']}:{config['database_port']}/{config['database_name']}"
-                ], stdout=f, check=True)
+            container_dump_path = f"/tmp/{archive_name.replace('.gz', '.sql')}"
+            subprocess.run([
+                "docker", "exec", config["container_name"], "pg_dump",
+                f"postgresql://{config['database_user']}:{config['database_password']}@"
+                f"{config['database_host']}:{config['database_port']}/{config['database_name']}",
+                "-f", container_dump_path
+            ], check=True)
+            subprocess.run([
+                "docker", "cp", f"{config['container_name']}:{container_dump_path}", dump_path
+            ], check=True)
+            subprocess.run([
+                "docker", "exec", config["container_name"], "rm", container_dump_path
+            ], check=True)
         else:
             with open(dump_path, 'wb') as f:
                 subprocess.run([
@@ -65,12 +72,18 @@ def backup_mysql(config):
     dump_path = tmp_path.replace('.gz', '.sql')
     try:
         if config.get("container_name"):
-            with open(dump_path, 'wb') as f:
-                subprocess.run([
-                    "docker", "exec", config["container_name"], "mysqldump",
-                    "-u", config['database_user'], f"--password={config['database_password']}",
-                    config['database_name']
-                ], stdout=f, check=True)
+            container_dump_path = f"/tmp/{archive_name.replace('.gz', '.sql')}"
+            subprocess.run([
+                "docker", "exec", config["container_name"], "mysqldump",
+                "-u", config['database_user'], f"--password={config['database_password']}",
+                config['database_name'], "-r", container_dump_path
+            ], check=True)
+            subprocess.run([
+                "docker", "cp", f"{config['container_name']}:{container_dump_path}", dump_path
+            ], check=True)
+            subprocess.run([
+                "docker", "exec", config["container_name"], "rm", container_dump_path
+            ], check=True)
         else:
             with open(dump_path, 'wb') as f:
                 subprocess.run([
@@ -88,15 +101,22 @@ def backup_mongo(config):
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
     try:
         if config.get("container_name"):
+            container_dump_path = f"/tmp/{archive_name.replace('.gz', '')}"
             subprocess.run([
                 "docker", "exec", config["container_name"], "mongodump",
-                "--db", config['database_name'], "--archive", tmp_path
+                "--db", config['database_name'], "--archive", container_dump_path
+            ], check=True)
+            subprocess.run([
+                "docker", "cp", f"{config['container_name']}:{container_dump_path}", tmp_path.replace('.gz', '')
+            ], check=True)
+            subprocess.run([
+                "docker", "exec", config["container_name"], "rm", container_dump_path
             ], check=True)
         else:
             subprocess.run([
-                "mongodump", "--db", config['database_name'], "--archive", tmp_path
+                "mongodump", "--db", config['database_name'], "--archive", tmp_path.replace('.gz', '')
             ], check=True)
-        subprocess.run(["gzip", tmp_path], check=True)
+        subprocess.run(["gzip", tmp_path.replace('.gz', '')], check=True)
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
         upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key)
     except Exception as e:
