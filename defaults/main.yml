@@ -1,12 +1,4 @@
 ---
-backup_notifications:
-  enabled: true
-  apprise_target: ""
-  requirements:
-    - python3
-    - python3-pip
-    - python3-setuptools
-
 backup:
   database_type: ""  # postgres, mysql, mongo
   name_backup: ""
@@ -20,7 +12,13 @@ backup:
   aws_endpoint: ""
   retain_count: 5
   exp_date: null  # Expiration in seconds
-  notifications_enabled: true
+  notifications:
+    enabled: true
+    apprise_target: ""
+    requirements:
+      - python3
+      - python3-pip
+      - python3-setuptools
   apprise_config: "/etc/backup/apprise_config"
   container_name: null  # Set container name if database runs in Docker
   cron:

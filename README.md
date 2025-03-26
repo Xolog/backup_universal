@@ -24,7 +24,6 @@ backup:
   aws_endpoint: ""  # S3 endpoint URL
   retain_count: 5  # Number of backups to retain
   exp_date: null  # Expiration in seconds
-  notifications_enabled: true  # Enable notifications
   apprise_config: "/etc/backup/apprise_config"  # Apprise config path
   cron:
     minute: "0"
@@ -32,6 +31,9 @@ backup:
     day: "*"
     month: "*"
     weekday: "*"
+  notifications:
+    enabled: true  # Enable notifications
+    apprise_target: ""  # Apprise target URL
 ```
 
 ### Usage

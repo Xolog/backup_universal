@@ -15,7 +15,7 @@
     src: apprise_config.j2
     dest: "{{ backup.apprise_config }}"
     mode: "600"
-  when: backup.notifications_enabled
+  when: backup.notifications.enabled
 
 - name: Create a config dir
   file:
@@ -31,15 +31,15 @@
     mode: "700"
   with_items: "{{ backup.databases }}"
 
-- name: Copy backup aprise config
+- name: Copy backup apprise config
   template:
     src: "apprise_config.j2"
     dest: /etc/backup/apprise_config
     mode: "600"
-  when: backup_notifications.enabled and backup_notifications.apprise_target != ""
+  when: backup.notifications.enabled and backup.notifications.apprise_target != ""
 
-- name: delete apprise_config when notification is turned off
+- name: Delete apprise_config when notification is turned off
   file:
     path: /etc/backup/apprise_config
     state: absent
-  when: not backup_notifications.enabled or backup_notifications.apprise_target == ""
+  when: not backup.notifications.enabled or backup.notifications.apprise_target == ""

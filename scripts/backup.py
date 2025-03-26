@@ -120,8 +120,15 @@ if __name__ == "__main__":
             "day": "*",
             "month": "*",
             "weekday": "*"
-        }
+        },
+        "notifications": {
+            "enabled": True,
+            "apprise_target": ""
+        },
     }
+
+    if config["notifications"]["enabled"]:
+        send_notification("Backup Started", "Backup process has started.")
 
     if config["database_type"] == "postgres":
         backup_postgres(config)
