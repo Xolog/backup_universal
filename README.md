@@ -70,3 +70,63 @@ backups:
               minute: "0"
               hour: "3"
 ```
+
+### Testing the Role
+
+To test the role, you can use the following steps:
+
+1. **Run the role in a test environment:**
+   Create a playbook and inventory file for testing. For example:
+
+   ```yaml
+   - hosts: localhost
+     roles:
+       - role: backup_universal
+         vars:
+           backups:
+             - database_type: "postgres"
+               name_backup: "test_backup"
+               database_name: "test_db"
+               database_user: "test_user"
+               database_password: "test_password"
+               database_host: "localhost"
+               database_port: 5432
+               tmp_dir: "/tmp"
+               aws_dest: "s3://test-bucket/backups"
+               aws_endpoint: "https://s3.example.com"
+               retain_count: 3
+               notifications:
+                 enabled: false
+               cron:
+                 minute: "0"
+                 hour: "1"
+   ```
+
+   Run the playbook:
+   ```bash
+   ansible-playbook -i inventory test_playbook.yml
+   ```
+
+2. **Verify the backup script:**
+   Ensure the script is copied to `/usr/local/bin/backup_universal/backup.py` and is executable:
+   ```bash
+   ls -l /usr/local/bin/backup_universal/backup.py
+   ```
+
+3. **Check cron jobs:**
+   Verify that the cron job is created:
+   ```bash
+   crontab -l | grep backup_universal
+   ```
+
+4. **Test notifications (if enabled):**
+   Manually trigger a notification using Apprise:
+   ```bash
+   /usr/local/bin/apprise -t "Test Notification" -b "This is a test" --config /etc/backup/apprise_config_test_backup
+   ```
+
+5. **Validate backups:**
+   Check the S3 bucket to ensure backups are uploaded correctly.
+
+6. **Clean up:**
+   Remove test backups and configurations after testing.

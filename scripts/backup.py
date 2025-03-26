@@ -57,19 +57,22 @@ def backup_postgres(config):
 def backup_mysql(config):
     archive_name = f"{config['name_backup']}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
+    dump_path = tmp_path.replace('.gz', '.sql')
     try:
         if config.get("container_name"):
-            subprocess.run([
-                "docker", "exec", config["container_name"], "mysqldump",
-                "-u", config['database_user'], f"--password={config['database_password']}",
-                config['database_name']
-            ], stdout=subprocess.PIPE, check=True)
+            with open(dump_path, 'wb') as f:
+                subprocess.run([
+                    "docker", "exec", config["container_name"], "mysqldump",
+                    "-u", config['database_user'], f"--password={config['database_password']}",
+                    config['database_name']
+                ], stdout=f, check=True)
         else:
-            subprocess.run([
-                "mysqldump", "-u", config['database_user'], f"--password={config['database_password']}",
-                config['database_name']
-            ], stdout=subprocess.PIPE, check=True)
-        subprocess.run(["gzip", tmp_path], check=True)
+            with open(dump_path, 'wb') as f:
+                subprocess.run([
+                    "mysqldump", "-u", config['database_user'], f"--password={config['database_password']}",
+                    config['database_name']
+                ], stdout=f, check=True)
+        subprocess.run(["gzip", dump_path], check=True)
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
         upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key)
     except Exception as e:
@@ -109,10 +112,11 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key):
         send_notification("Upload Failed", f"Failed to upload {file_path} to S3: {str(e)}")
 
 def configure_cron(config):
+    script_path = os.path.abspath(__file__)
     cron_job = (
         f"{config['cron']['minute']} {config['cron']['hour']} {config['cron']['day']} "
         f"{config['cron']['month']} {config['cron']['weekday']} "
-        f"/usr/local/bin/backup_universal/backup.py"
+        f"{script_path}"
     )
     cron_file = "/etc/cron.d/backup_cron"
     with open(cron_file, "w") as f:

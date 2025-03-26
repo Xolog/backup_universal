@@ -1,3 +1,16 @@
+- name: Ensure backup directory exists
+  file:
+    path: "/etc/backup"
+    state: directory
+    mode: "700"
+
+- name: Ensure temporary directory exists
+  file:
+    path: "{{ item.tmp_dir }}"
+    state: directory
+    mode: "700"
+  with_items: "{{ backups }}"
+
 - name: Create backup directory
   file:
     path: "/etc/backup"
