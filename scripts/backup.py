@@ -27,12 +27,14 @@ def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aw
 
     if retain_count:
         for obj in sorted_objects[:-retain_count]:
+            print(f"Deleting due to retain count: {obj['Key']}")
             s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
     if exp_date:
         exp_date = datetime.now(timezone.utc) - timedelta(seconds=int(exp_date))
         for obj in sorted_objects:
             if obj['LastModified'] < exp_date:
+                print(f"Deleting due to expiration date: {obj['Key']}")
                 s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
 def backup_postgres(config):
@@ -48,6 +50,10 @@ def backup_postgres(config):
                 f"postgresql://{config['database_user']}:{config['database_password']}@"
                 f"{config['database_host']}:{config['database_port']}/{config['database_name']}",
                 "-f", container_dump_path
+            ], check=True)
+            # Verify dump file exists in the container
+            subprocess.run([
+                "docker", "exec", config["container_name"], "test", "-f", container_dump_path
             ], check=True)
             print(f"Copying dump file from container: {container_dump_path}")
             subprocess.run([
@@ -81,6 +87,10 @@ def backup_mysql(config):
                 "-u", config['database_user'], f"--password={config['database_password']}",
                 config['database_name'], "-r", container_dump_path
             ], check=True)
+            # Verify dump file exists in the container
+            subprocess.run([
+                "docker", "exec", config["container_name"], "test", "-f", container_dump_path
+            ], check=True)
             print(f"Copying dump file from container: {container_dump_path}")
             subprocess.run([
                 "docker", "cp", f"{config['container_name']}:{container_dump_path}", dump_path
@@ -110,6 +120,10 @@ def backup_mongo(config):
             subprocess.run([
                 "docker", "exec", config["container_name"], "mongodump",
                 "--db", config['database_name'], "--archive", container_dump_path
+            ], check=True)
+            # Verify dump file exists in the container
+            subprocess.run([
+                "docker", "exec", config["container_name"], "test", "-f", container_dump_path
             ], check=True)
             print(f"Copying dump file from container: {container_dump_path}")
             subprocess.run([
