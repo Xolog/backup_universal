@@ -1,12 +1,37 @@
-- name: Check to aws-cli installed
+- name: Install required packages
   package:
-    name: awscli
+    name:
+      - python3
+      - python3-pip
+      - awscli
     state: present
-- name: Check to postgresql-client-common
-  package:
-    name: postgresql-client-common
-    state: present
-- name: Check to postgresql-client-common
+  become: yes
+
+- name: Install PostgreSQL client
   package:
     name: postgresql-client
     state: present
+  when: "'postgres' in backups | map(attribute='database_type') | list"
+  become: yes
+
+- name: Install MySQL client
+  package:
+    name: mysql-client
+    state: present
+  when: "'mysql' in backups | map(attribute='database_type') | list"
+  become: yes
+
+- name: Install MongoDB client
+  package:
+    name: mongodb-org-shell
+    state: present
+  when: "'mongo' in backups | map(attribute='database_type') | list"
+  become: yes
+
+- name: Install Python libraries
+  pip:
+    name:
+      - boto3
+      - apprise
+    state: present
+  become: yes

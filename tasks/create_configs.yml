@@ -1,38 +1,40 @@
-- name: Create a config dir
+- name: Ensure backup directory exists
   file:
     path: "/etc/backup"
     state: directory
-    mode: "600"
+    mode: "700"
+
+- name: Ensure temporary directory exists
+  file:
+    path: "{{ item.tmp_dir }}"
+    state: directory
+    mode: "700"
+  with_items: "{{ backups }}"
+
+- name: Create backup directory
+  file:
+    path: "/etc/backup"
+    state: directory
+    mode: "700"
 
 - name: Create AWS credentials file
   template:
     src: credentials.j2
-    dest: "/etc/backup/credentials"
+    dest: "/usr/local/bin/backup_universal/credentials_{{ item.name_backup }}"
     mode: "600"
+  with_items: "{{ backups }}"
 
-- name: Create a config dir
-  file:
-    path: "/usr/local/bin/{{ item.database_type }}"
-    state: directory
-    mode: "600"
-  with_items: "{{ backup.databases }}"
-
-- name: Copy backup executable file
+- name: Create Apprise config files
   template:
-    src: "{{ item.database_type }}.j2"
-    dest: /usr/local/bin/{{ item.database_type }}/backup.sh
-    mode: "700"
-  with_items: "{{ backup.databases }}"
-
-- name: Copy backup aprise config
-  template:
-    src: "apprise_config.j2"
-    dest: /etc/backup/apprise_config
+    src: apprise_config.j2
+    dest: "/etc/backup/apprise_config_{{ item.name_backup }}"
     mode: "600"
-  when: backup_notifications.enabled and backup_notifications.apprise_target != ""
+  with_items: "{{ backups }}"
+  when: item.notifications.enabled | default(false)
 
-- name: delete apprise_config when notification is turned off
+- name: Delete Apprise config files when notifications are disabled
   file:
-    path: /etc/backup/apprise_config
+    path: "/etc/backup/apprise_config_{{ item.name_backup }}"
     state: absent
-  when: not backup_notifications.enabled or backup_notifications.apprise_target == ""
+  with_items: "{{ backups }}"
+  when: not item.notifications.enabled | default(false)

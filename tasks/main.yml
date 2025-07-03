@@ -6,10 +6,20 @@
   include_tasks: create_configs.yml
   tags: config
 
-- name: Configure cron
-  include_tasks: configure_cron.yml
-  tags: cron
+- name: Ensure backup script directory exists
+  file:
+    path: /usr/local/bin/backup_universal
+    state: directory
+    mode: "0755"
+  tags: script
 
-- name: pyhton3, apprise install
-  include_tasks: install_python_apprise.yml
+- name: Copy backup script to target host
+  copy:
+    src: ../scripts/backup.py
+    dest: /usr/local/bin/backup_universal/backup.py
+    mode: "0755"
+  tags: script
+
+- name: Configure cron jobs
+  include_tasks: configure_cron.yml
   tags: cron

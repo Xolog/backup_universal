@@ -1,61 +1,31 @@
 ---
-backup_notifications:
-  enabled: true
-  apprise_target: ""
-  requirements:
-    - python3
-    - python3-pip
-    - python3-setuptools
-
-
-pg_remote:
-  database_name: test
-  name_backup: super-backup
-  database_user: test
-  database_password: test
-  database_host: localhost
-  database_port: 5433
-
-mysql_docker:
-  database_name: test
-  name_backup: super-backup_mysql
-  database_user: test
-  database_password: test
-  container_name: name
-
-
-backup:
-  aws_access_key: ""
-  aws_secret_key: ""
-  aws_endpoint: enpoint
-  databases:
-  - name_backup: super-bassdsds
-    database_type: pg_remote
-    tmp_dir: /tmp
-    database_name: name
+backups:
+  - database_type: ""  # postgres, mysql, mongo
+    name_backup: ""
+    database_name: ""
+    database_user: ""
+    database_password: ""
+    database_host: "localhost"
+    database_port: 5432
+    tmp_dir: "/tmp"
     aws_dest: ""
     aws_endpoint: ""
+    aws_access_key: ""  # AWS access key
+    aws_secret_key: ""  # AWS secret key
     retain_count: 5
-    filter_date: '"5 min ago"'
-    use_local: "" #Use for save backups in the host. Use "" for False.
+    exp_date: null  # Expiration in seconds
+    notifications:
+      enabled: true
+      apprise_target: ""
+      requirements:
+        - python3
+        - python3-pip
+        - python3-setuptools
+    apprise_config: "/etc/backup/apprise_config_{{ item.name_backup }}"
+    container_name: null  # Set container name if database runs in Docker
     cron:
-        minute: "*"
-        hour: "*"
-        day: "*"
-        weekday: "*"
-        month: "*"
-  - name_backup: super-bassdsds
-    database_type: mysql_docker
-    tmp_dir: /tmp
-    container_name: name
-    database_name: name
-    aws_dest: ""
-    aws_endpoint: ""
-    retain_count: 5
-    filter_date: '"5 min ago"'
-    cron:
-        minute: "*"
-        hour: "*"
-        day: "*"
-        weekday: "*"
-        month: "*"
+      minute: "0"
+      hour: "2"
+      day: "*"
+      month: "*"
+      weekday: "*"
