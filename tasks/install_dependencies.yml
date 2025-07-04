@@ -33,5 +33,6 @@
     name:
       - boto3
       - apprise
+      - botocore
     state: present
   become: yes
