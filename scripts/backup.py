@@ -119,7 +119,7 @@ def backup_mysql(config):
         else:
             with open(dump_path, 'wb') as f:
                 subprocess.run([
-                    "mysqldump", "-u", config['database_user'], f"--password={config['database_password']}",
+                    "mysqldump", "-u", config['database_user'], f"-p{config['database_password']}",
                     config['database_name']
                 ], stdout=f, check=True)
         subprocess.run(["gzip", dump_path], check=True)
@@ -171,8 +171,10 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key):
     )
     parsed = urlparse(dest)
     bucket = parsed.netloc              
-    key = parsed.path.lstrip('/')       
-    
+    key = parsed.path.lstrip('/')
+    if config["database_type"] in ['mysql', 'postgres']:
+        file_path = f"{file_path.removesuffix('.gz')}.sql.gz"
+
     print(f"Uploading to S3 bucket '{bucket}' with key '{key}'")
     
     try:
