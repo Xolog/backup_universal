@@ -17,6 +17,12 @@
     state: directory
     mode: "700"
 
+- name: Ensure backup script directory exists
+  file:
+    path: /usr/local/bin/backup_universal
+    state: directory
+    mode: "0755"
+
 - name: Create AWS credentials file
   template:
     src: credentials.j2
