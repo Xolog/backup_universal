@@ -2,9 +2,13 @@
 import os
 import subprocess
 import boto3
-from datetime import datetime, timedelta, timezone
 import argparse
+import traceback
 import configparser
+
+from urllib.parse import urlparse
+from datetime import datetime, timedelta, timezone
+
 
 def load_aws_credentials(credentials_file):
     config = configparser.ConfigParser()
@@ -21,8 +25,17 @@ def send_notification(title, message, config_path=None):
 
 def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aws_access_key=None, aws_secret_key=None):
     s3 = boto3.client('s3', endpoint_url=aws_endpoint, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
-    bucket, prefix = dest.split('/', 1)
+    parsed = urlparse(dest)
+    bucket = parsed.netloc
+    prefix = parsed.path.lstrip('/')
+
+    print(f"Rotating backups in bucket '{bucket}' under prefix '{prefix}'")
+    
     objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix).get('Contents', [])
+    if not objects:
+        print("No objects found for rotation.")
+        return
+
     sorted_objects = sorted(objects, key=lambda x: x['LastModified'])
 
     if retain_count:
@@ -81,12 +94,17 @@ def backup_mysql(config):
     try:
         if config.get("container_name"):
             container_dump_path = f"/tmp/{archive_name.replace('.gz', '.sql')}"
-            print(f"Starting MySQL backup in container: {config['container_name']}")
-            subprocess.run([
+            print(f"Starting MySQL backup: {archive_name} in container: {config['container_name']}")
+            result = subprocess.run([
                 "docker", "exec", config["container_name"], "mysqldump",
-                "-u", config['database_user'], f"--password={config['database_password']}",
+                "-u", config['database_user'], f"-p{config['database_password']}",
                 config['database_name'], "-r", container_dump_path
-            ], check=True)
+            ], capture_output=True, text=True)
+            if result.returncode != 0:
+                print("mysqldump failed:")
+                print(result.stderr)
+                raise Exception("mysqldump error")
+
             # Verify dump file exists in the container
             subprocess.run([
                 "docker", "exec", config["container_name"], "test", "-f", container_dump_path
@@ -108,6 +126,8 @@ def backup_mysql(config):
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
         upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key)
     except Exception as e:
+        print("Backup MySQL failed!")
+        traceback.print_exc()
         send_notification("Backup Failed", f"MySQL backup failed: {str(e)}")
 
 def backup_mongo(config):
@@ -149,7 +169,12 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key):
         aws_access_key_id=aws_access_key,
         aws_secret_access_key=aws_secret_key
     )
-    bucket, key = dest.split('/', 1)
+    parsed = urlparse(dest)
+    bucket = parsed.netloc              
+    key = parsed.path.lstrip('/')       
+    
+    print(f"Uploading to S3 bucket '{bucket}' with key '{key}'")
+    
     try:
         print(f"Uploading {file_path} to S3...")
         s3.upload_file(file_path, bucket, key)
@@ -164,6 +189,7 @@ def parse_arguments():
     parser.add_argument("-t", "--database_type", required=True, help="Type of the database (postgres, mysql, mongo)")
     parser.add_argument("-n", "--name_backup", required=True, help="Name of the backup")
     parser.add_argument("-d", "--aws_dest", required=True, help="AWS S3 destination (bucket/prefix)")
+    parser.add_argument("-D", "--database_name", required=True, help="Name database for backup")
     parser.add_argument("-u", "--database_user", required=True, help="Database user")
     parser.add_argument("-p", "--database_password", required=True, help="Database password")
     parser.add_argument("-H", "--database_host", required=True, help="Database host")
