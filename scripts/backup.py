@@ -10,6 +10,12 @@ from urllib.parse import urlparse
 from botocore.config import Config
 from datetime import datetime, timedelta, timezone
 
+def load_aws_credentials(credentials_file):
+    config = configparser.ConfigParser()
+    config.read(credentials_file)
+    if 'default' not in config:
+        raise KeyError("'default' section is missing in the credentials file")
+    return config['default']['aws_access_key_id'], config['default']['aws_secret_access_key']
 
 def send_notification(title, message, config_path=None):
     if os.path.exists("/usr/local/bin/apprise") and config_path and os.path.exists(config_path):
@@ -43,13 +49,6 @@ def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aw
             if obj['LastModified'] < exp_date:
                 print(f"Deleting due to expiration date: {obj['Key']}\n")
                 s3.delete_object(Bucket=bucket, Key=obj['Key'])
-
-def load_aws_credentials(credentials_file):
-    config = configparser.ConfigParser()
-    config.read(credentials_file)
-    if 'default' not in config:
-        raise KeyError("'default' section is missing in the credentials file")
-    return config['default']['aws_access_key_id'], config['default']['aws_secret_access_key']
 
 def backup_postgres(config):
     archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.gz"
