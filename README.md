@@ -20,7 +20,7 @@ backups:
     database_host: "localhost"  # Database host
     database_port: 5432  # Database port
     tmp_dir: "/tmp"  # Temporary directory for backups
-    aws_dest: ""  # S3 destination (e.g., s3://bucket-name/prefix)
+    bucket_name: ""  # Bucket name
     aws_endpoint: ""  # S3 endpoint URL
     retain_count: 5  # Number of backups to retain
     exp_date: null  # Expiration in seconds
@@ -62,7 +62,7 @@ backups:
             database_host: "localhost"
             database_port: 5432
             tmp_dir: "/tmp"
-            aws_dest: "s3://my-bucket/backups"
+            bucket_name: "my-bucket"
             aws_endpoint: "https://s3.example.com"
             retain_count: 7
             notifications_enabled: true
@@ -92,7 +92,7 @@ To test the role, you can use the following steps:
                database_host: "localhost"
                database_port: 5432
                tmp_dir: "/tmp"
-               aws_dest: "s3://test-bucket/backups"
+               bucket_name: "test-bucket"
                aws_endpoint: "https://s3.example.com"
                retain_count: 3
                notifications:

@@ -6,7 +6,6 @@ import argparse
 import traceback
 import configparser
 
-from urllib.parse import urlparse
 from botocore.config import Config
 from datetime import datetime, timedelta, timezone
 
@@ -23,15 +22,12 @@ def send_notification(title, message, config_path=None):
     else:
         print(f"Notification skipped: Apprise config not provided or not found.\n")
 
-def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aws_access_key=None, aws_secret_key=None):
+def rotate_backups(bucket, key, retain_count=None, exp_date=None, aws_endpoint=None, aws_access_key=None, aws_secret_key=None):
     s3 = boto3.client('s3', endpoint_url=aws_endpoint, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
-    parsed = urlparse(dest)
-    bucket = parsed.netloc
-    prefix = parsed.path.lstrip('/')
 
-    print(f"Rotating backups in bucket '{bucket}' under prefix '{prefix}'\n")
+    print(f"Rotating backups in bucket '{bucket}' under prefix '{key}'\n")
     
-    objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix).get('Contents', [])
+    objects = s3.list_objects_v2(Bucket=bucket, Prefix=key).get('Contents', [])
     if not objects:
         print("No objects found for rotation.\n")
         return
@@ -85,7 +81,7 @@ def backup_postgres(config):
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
         file_path = f"{tmp_path.removesuffix('.gz')}.sql.gz"
         obj_name = f"{config['bucket_dir']}/{archive_name.removesuffix('.gz')}.sql.gz"
-        upload_to_s3(file_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key, obj_name)
+        upload_to_s3(file_path, config['bucket_name'], config['aws_endpoint'], aws_access_key, aws_secret_key, obj_name)
     except Exception as e:
         send_notification("Backup Failed", f"Postgres backup failed: {str(e)}")
 
@@ -127,7 +123,7 @@ def backup_mysql(config):
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
         file_path = f"{tmp_path.removesuffix('.gz')}.sql.gz"
         obj_name = f"{config['bucket_dir']}/{archive_name.removesuffix('.gz')}.sql.gz"
-        upload_to_s3(file_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key, obj_name)
+        upload_to_s3(file_path, config['bucket_name'], config['aws_endpoint'], aws_access_key, aws_secret_key, obj_name)
     except Exception as e:
         print("Backup MySQL failed!\n")
         traceback.print_exc()
@@ -162,11 +158,11 @@ def backup_mongo(config):
             ], check=True)
         subprocess.run(["gzip", tmp_path.replace('.gz', '')], check=True)
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
-        upload_to_s3(tmp_path, config['aws_dest'], config['aws_endpoint'], aws_access_key, aws_secret_key)
+        upload_to_s3(tmp_path, config['bucket_name'], config['aws_endpoint'], aws_access_key, aws_secret_key)
     except Exception as e:
         send_notification("Backup Failed", f"MongoDB backup failed: {str(e)}")
 
-def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key, key):
+def upload_to_s3(file_path, bucket, aws_endpoint, aws_access_key, aws_secret_key, key):
     config = Config(
             request_checksum_calculation = 'WHEN_REQUIRED',
             response_checksum_validation = 'WHEN_REQUIRED',
@@ -177,9 +173,7 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key, 
         endpoint_url=aws_endpoint,
         aws_access_key_id=aws_access_key,
         aws_secret_access_key=aws_secret_key
-    )
-    parsed = urlparse(dest)
-    bucket = parsed.netloc              
+    )             
         
     print(f"Uploading to S3 bucket '{bucket}' with key '{key}'\n")
     
@@ -196,13 +190,13 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Backup Universal Script")
     parser.add_argument("-t", "--database_type", required=True, help="Type of the database (postgres, mysql, mongo)")
     parser.add_argument("-n", "--name_backup", required=True, help="Name of the backup")
-    parser.add_argument("-d", "--aws_dest", required=True, help="AWS S3 destination (bucket/prefix)")
-    parser.add_argument("-D", "--database_name", required=True, help="Name database for backup")
+    parser.add_argument("-b", "--bucket_name", required=True, help="Name of bucket")
+    parser.add_argument("-d", "--database_name", required=True, help="Name database for backup")
     parser.add_argument("-u", "--database_user", required=True, help="Database user")
     parser.add_argument("-p", "--database_password", required=True, help="Database password")
     parser.add_argument("-H", "--database_host", required=True, help="Database host")
     parser.add_argument("-P", "--database_port", required=True, type=int, help="Database port")
-    parser.add_argument("-B", "--bucket_dir", help="Bucket dirrectory for backup")
+    parser.add_argument("-D", "--bucket_dir", help="Bucket dirrectory for backup")
     parser.add_argument("-r", "--retain_count", type=int, help="Number of backups to retain")
     parser.add_argument("-e", "--exp_date", type=int, help="Expiration date in seconds (optional)")
     parser.add_argument("--container_name", help="Docker container name (optional)")
@@ -225,7 +219,8 @@ if __name__ == "__main__":
         backup_mongo(config)
 
     aws_access_key, aws_secret_key = load_aws_credentials(config["credentials_file"])
-    rotate_backups(config["aws_dest"], config.get("retain_count"), config.get("exp_date"), config.get("aws_endpoint"), aws_access_key, aws_secret_key)
+    bucket_dir = f"{config.get('bucket_dir')}/"
+    rotate_backups(config["bucket_name"], bucket_dir, config.get("retain_count"), config.get("exp_date"), config.get("aws_endpoint"), aws_access_key, aws_secret_key)
 
     if config.get("apprise_config"):
         send_notification("Backup Completed", f"Backup {config['name_backup']} completed successfully.", config["apprise_config"])
