@@ -11,6 +11,39 @@ from botocore.config import Config
 from datetime import datetime, timedelta, timezone
 
 
+def send_notification(title, message, config_path=None):
+    if os.path.exists("/usr/local/bin/apprise") and config_path and os.path.exists(config_path):
+        subprocess.run(["/usr/local/bin/apprise", "-t", title, "-b", message, "--config", config_path])
+    else:
+        print(f"Notification skipped: Apprise config not provided or not found.\n")
+
+def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aws_access_key=None, aws_secret_key=None):
+    s3 = boto3.client('s3', endpoint_url=aws_endpoint, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
+    parsed = urlparse(dest)
+    bucket = parsed.netloc
+    prefix = parsed.path.lstrip('/')
+
+    print(f"Rotating backups in bucket '{bucket}' under prefix '{prefix}'\n")
+    
+    objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix).get('Contents', [])
+    if not objects:
+        print("No objects found for rotation.\n")
+        return
+
+    sorted_objects = sorted(objects, key=lambda x: x['LastModified'])
+
+    if retain_count:
+        for obj in sorted_objects[:-retain_count]:
+            print(f"Deleting due to retain count: {obj['Key']}\n")
+            s3.delete_object(Bucket=bucket, Key=obj['Key'])
+
+    if exp_date:
+        exp_date = datetime.now(timezone.utc) - timedelta(seconds=int(exp_date))
+        for obj in sorted_objects:
+            if obj['LastModified'] < exp_date:
+                print(f"Deleting due to expiration date: {obj['Key']}\n")
+                s3.delete_object(Bucket=bucket, Key=obj['Key'])
+
 def load_aws_credentials(credentials_file):
     config = configparser.ConfigParser()
     config.read(credentials_file)
@@ -146,7 +179,6 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key, 
         aws_access_key_id=aws_access_key,
         aws_secret_access_key=aws_secret_key
     )
-    # bucket, key = dest.split('/', 1)
     parsed = urlparse(dest)
     bucket = parsed.netloc              
         
@@ -160,40 +192,6 @@ def upload_to_s3(file_path, dest, aws_endpoint, aws_access_key, aws_secret_key, 
     except Exception as e:
         send_notification("Upload Failed", f"Failed to upload {file_path} to S3: {str(e)}")
         print(f"Upload failed: {file_path} - {str(e)}\n")
-
-def send_notification(title, message, config_path=None):
-    if os.path.exists("/usr/local/bin/apprise") and config_path and os.path.exists(config_path):
-        subprocess.run(["/usr/local/bin/apprise", "-t", title, "-b", message, "--config", config_path])
-    else:
-        print(f"Notification skipped: Apprise config not provided or not found.\n")
-
-def rotate_backups(dest, retain_count=None, exp_date=None, aws_endpoint=None, aws_access_key=None, aws_secret_key=None):
-    s3 = boto3.client('s3', endpoint_url=aws_endpoint, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
-    #bucket, prefix = dest.split('/', 1)
-    parsed = urlparse(dest)
-    bucket = parsed.netloc
-    prefix = parsed.path.lstrip('/')
-
-    print(f"Rotating backups in bucket '{bucket}' under prefix '{prefix}'\n")
-    
-    objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix).get('Contents', [])
-    if not objects:
-        print("No objects found for rotation.\n")
-        return
-
-    sorted_objects = sorted(objects, key=lambda x: x['LastModified'])
-
-    if retain_count:
-        for obj in sorted_objects[:-retain_count]:
-            print(f"Deleting due to retain count: {obj['Key']}\n")
-            s3.delete_object(Bucket=bucket, Key=obj['Key'])
-
-    if exp_date:
-        exp_date = datetime.now(timezone.utc) - timedelta(seconds=int(exp_date))
-        for obj in sorted_objects:
-            if obj['LastModified'] < exp_date:
-                print(f"Deleting due to expiration date: {obj['Key']}\n")
-                s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Backup Universal Script")
