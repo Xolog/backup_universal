@@ -10,8 +10,9 @@
       #!/bin/bash
       /usr/local/bin/backup_universal/backup.py \
         -t {{ item.database_type }} \
-        -n "{{ item.name_backup }}_$(date +\%F_\%H-\%M)" \
+        -n "{{ item.name_backup }}" \
         -d {{ item.aws_dest }} \
+        -D {{ item.database_name }} \
         -u {{ item.database_user }} \
         -p {{ item.database_password }} \
         -H {{ item.database_host }} \
