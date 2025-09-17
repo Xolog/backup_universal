@@ -49,7 +49,7 @@ def rotate_backups(bucket, key, retain_count=None, exp_date=None, aws_endpoint=N
 def backup_postgres(config):
     archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.sql"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
-    dump_path = os.path.join('/tmp', archive_name)
+    сontainer_dump_path = os.path.join('/tmp', archive_name)
     try:
         if config.get("container_name"):
             print(f"Starting PostgreSQL backup in container: {config['container_name']}\n")
@@ -57,26 +57,26 @@ def backup_postgres(config):
                 "docker", "exec", config["container_name"], "pg_dump",
                 f"postgresql://{config['database_user']}:{config['database_password']}@"
                 f"{config['database_host']}:{config['database_port']}/{config['database_name']}",
-                "-f", dump_path
+                "-f", сontainer_dump_path
             ], check=True)
             # Verify dump file exists in the container
             subprocess.run([
-                "docker", "exec", config["container_name"], "test", "-f", dump_path
+                "docker", "exec", config["container_name"], "test", "-f", сontainer_dump_path
             ], check=True)
             print(f"Copying dump file from container to directory: {config['tmp_dir']}\n")
             subprocess.run([
-                "docker", "cp", f"{config['container_name']}:{dump_path}", tmp_path
+                "docker", "cp", f"{config['container_name']}:{сontainer_dump_path}", tmp_path
             ], check=True)
             subprocess.run([
-                "docker", "exec", config["container_name"], "rm", dump_path
+                "docker", "exec", config["container_name"], "rm", сontainer_dump_path
             ], check=True)
         else:
-            with open(dump_path, 'wb') as f:
+            with open(сontainer_dump_path, 'wb') as f:
                 subprocess.run([
                     "pg_dump", f"postgresql://{config['database_user']}:{config['database_password']}@"
                     f"{config['database_host']}:{config['database_port']}/{config['database_name']}"
                 ], stdout=f, check=True)
-        subprocess.run(["gzip", dump_path], check=True)
+        subprocess.run(["gzip", сontainer_dump_path], check=True)
 
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
         file_path = f"{tmp_path}.gz"
@@ -88,7 +88,7 @@ def backup_postgres(config):
 def backup_mysql(config):
     archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.sql"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
-    dump_path = os.path.join('/tmp', archive_name)
+    сontainer_dump_path = os.path.join('/tmp', archive_name)
     try:
         if config.get("container_name"):
             print(f"Starting MySQL backup: {archive_name} in container: {config['container_name']}\n")
@@ -96,21 +96,21 @@ def backup_mysql(config):
             result = subprocess.run([
                 "docker", "exec", config["container_name"], "mysqldump",
                 "-u", config['database_user'], f"-p{config['database_password']}",
-                config['database_name'], "-r", dump_path
+                config['database_name'], "-r", сontainer_dump_path
             ], capture_output=True, text=True)
             if result.returncode != 0:
                 raise Exception(f"mysqldump failed:\n{result.stderr}\n")
 
             # Verify dump file exists in the container
             subprocess.run([
-                "docker", "exec", config["container_name"], "test", "-f", dump_path
+                "docker", "exec", config["container_name"], "test", "-f", сontainer_dump_path
             ], check=True)
             print(f"Copying dump file from container to directory: {config['tmp_dir']}\n")
             subprocess.run([
-                "docker", "cp", f"{config['container_name']}:{dump_path}", tmp_path
+                "docker", "cp", f"{config['container_name']}:{сontainer_dump_path}", tmp_path
             ], check=True)
             subprocess.run([
-                "docker", "exec", config["container_name"], "rm", dump_path
+                "docker", "exec", config["container_name"], "rm", сontainer_dump_path
             ], check=True)
         else:
             with open(tmp_path, 'wb') as f:
