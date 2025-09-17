@@ -47,9 +47,9 @@ def rotate_backups(bucket, key, retain_count=None, exp_date=None, aws_endpoint=N
                 s3.delete_object(Bucket=bucket, Key=obj['Key'])
 
 def backup_postgres(config):
-    archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.gz"
+    archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.sql"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
-    dump_path = tmp_path.replace('.gz', '.sql')
+    dump_path = os.path.join('/tmp', archive_name)
     try:
         if config.get("container_name"):
             print(f"Starting PostgreSQL backup in container: {config['container_name']}\n")
@@ -65,7 +65,7 @@ def backup_postgres(config):
             ], check=True)
             print(f"Copying dump file from container to directory: {config['tmp_dir']}\n")
             subprocess.run([
-                "docker", "cp", f"{config['container_name']}:{dump_path}", dump_path
+                "docker", "cp", f"{config['container_name']}:{dump_path}", tmp_path
             ], check=True)
             subprocess.run([
                 "docker", "exec", config["container_name"], "rm", dump_path
@@ -79,16 +79,16 @@ def backup_postgres(config):
         subprocess.run(["gzip", dump_path], check=True)
 
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
-        file_path = f"{tmp_path.removesuffix('.gz')}.sql.gz"
-        obj_name = f"{config['bucket_dir']}/{archive_name.removesuffix('.gz')}.sql.gz"
+        file_path = f"{tmp_path}.gz"
+        obj_name = f"{config['bucket_dir']}/{archive_name}.gz"
         upload_to_s3(file_path, config['bucket_name'], config['aws_endpoint'], aws_access_key, aws_secret_key, obj_name)
     except Exception as e:
         send_notification("Backup Failed", f"Postgres backup failed: {str(e)}")
 
 def backup_mysql(config):
-    archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.gz"
+    archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.sql"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
-    dump_path = tmp_path.replace('.gz', '.sql')
+    dump_path = os.path.join('/tmp', archive_name)
     try:
         if config.get("container_name"):
             print(f"Starting MySQL backup: {archive_name} in container: {config['container_name']}\n")
@@ -107,22 +107,22 @@ def backup_mysql(config):
             ], check=True)
             print(f"Copying dump file from container to directory: {config['tmp_dir']}\n")
             subprocess.run([
-                "docker", "cp", f"{config['container_name']}:{dump_path}", dump_path
+                "docker", "cp", f"{config['container_name']}:{dump_path}", tmp_path
             ], check=True)
             subprocess.run([
                 "docker", "exec", config["container_name"], "rm", dump_path
             ], check=True)
         else:
-            with open(dump_path, 'wb') as f:
+            with open(tmp_path, 'wb') as f:
                 subprocess.run([
                     "mysqldump", "-u", config['database_user'], f"-p{config['database_password']}",
                     config['database_name']
                 ], stdout=f, check=True)
-        subprocess.run(["gzip", dump_path], check=True)
+        subprocess.run(["gzip", tmp_path], check=True)
 
         aws_access_key, aws_secret_key = load_aws_credentials(config['credentials_file'])
-        file_path = f"{tmp_path.removesuffix('.gz')}.sql.gz"
-        obj_name = f"{config['bucket_dir']}/{archive_name.removesuffix('.gz')}.sql.gz"
+        file_path = f"{tmp_path}.gz"
+        obj_name = f"{config['bucket_dir']}/{archive_name}.gz"
         upload_to_s3(file_path, config['bucket_name'], config['aws_endpoint'], aws_access_key, aws_secret_key, obj_name)
     except Exception as e:
         print("Backup MySQL failed!\n")
@@ -132,25 +132,25 @@ def backup_mysql(config):
 def backup_mongo(config):
     archive_name = f"{config['name_backup']}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M')}.gz"
     tmp_path = os.path.join(config['tmp_dir'], archive_name)
-    dump_path = tmp_path.replace('.gz', '.sql')
-
+    сontainer_dump_path = f"/tmp/{archive_name.replace('.gz', '')}"
+    
     try:
         if config.get("container_name"):
             print(f"Starting MongoDB backup in container: {config['container_name']}\n")
             subprocess.run([
                 "docker", "exec", config["container_name"], "mongodump",
-                "--db", config['database_name'], "--archive", dump_path
+                "--db", config['database_name'], "--archive", сontainer_dump_path
             ], check=True)
             # Verify dump file exists in the container
             subprocess.run([
-                "docker", "exec", config["container_name"], "test", "-f", dump_path
+                "docker", "exec", config["container_name"], "test", "-f", сontainer_dump_path
             ], check=True)
             print(f"Copying dump file from container to directory: {config['tmp_dir']}\n")
             subprocess.run([
-                "docker", "cp", f"{config['container_name']}:{dump_path}", tmp_path.replace('.gz', '')
+                "docker", "cp", f"{config['container_name']}:{сontainer_dump_path}", tmp_path.replace('.gz', '')
             ], check=True)
             subprocess.run([
-                "docker", "exec", config["container_name"], "rm", dump_path
+                "docker", "exec", config["container_name"], "rm", сontainer_dump_path
             ], check=True)
         else:
             subprocess.run([
